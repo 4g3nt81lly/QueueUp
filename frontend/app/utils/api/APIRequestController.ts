@@ -1,6 +1,15 @@
 import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios';
-import { APIRequestCanceledError, APIRequestError, APIResponseError } from '../../errors/rest';
-import type { APIEndpointError, APIEndpointPayload, APIEndpointResponse, APIRequestOptions } from '../../types/api';
+import {
+	APIRequestCanceledError,
+	APIRequestError,
+	APIResponseError,
+} from '../../errors/rest';
+import type {
+	APIEndpointError,
+	APIEndpointPayload,
+	APIEndpointResponse,
+	APIRequestOptions,
+} from '../../types/api';
 import type { Nullable } from '../../types/utility';
 import { isPresent } from '../helpers';
 
@@ -21,7 +30,9 @@ export default class APIRequestController {
 		this.timeoutId = null;
 	}
 
-	private makeRequestConfig(options: APIRequestOptions<any>): AxiosRequestConfig<any> {
+	private makeRequestConfig(
+		options: APIRequestOptions<any>
+	): AxiosRequestConfig<any> {
 		return {
 			signal: this.abortController.signal,
 			validateStatus(status) {
@@ -35,11 +46,16 @@ export default class APIRequestController {
 	}
 
 	public async dispatch<T, D = any>(
-		action: (config: AxiosRequestConfig<D>) => Promise<AxiosResponse<APIEndpointResponse<T>>>,
+		action: (
+			config: AxiosRequestConfig<D>
+		) => Promise<AxiosResponse<APIEndpointResponse<T>>>,
 		callback?: () => void
 	): Promise<T> {
 		if (isPresent(this.options.timeout)) {
-			this.timeoutId = setTimeout(() => this.abortController.abort(), this.options.timeout);
+			this.timeoutId = setTimeout(
+				() => this.abortController.abort(),
+				this.options.timeout
+			);
 		}
 		let response: AxiosResponse<APIEndpointResponse<T>>;
 		try {

@@ -5,7 +5,8 @@ import type { Nullable } from '../../types/utility';
 import { getAccessToken } from '../helpers';
 import APIRequestController from './APIRequestController';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
+const API_BASE_URL =
+	import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
 
 export class APIController {
 	private _api: AxiosInstance;
@@ -25,7 +26,9 @@ export class APIController {
 		this.configureInterceptors();
 	}
 
-	public setAuthSource(callback: Nullable<() => Nullable<string>>): APIController {
+	public setAuthSource(
+		callback: Nullable<() => Nullable<string>>
+	): APIController {
 		this._getAccessToken = callback ?? getAccessToken;
 		return this;
 	}
@@ -65,7 +68,10 @@ export class APIController {
 		}
 	}
 
-	public async get<T, D = undefined>(url: string, options: APIRequestOptions<D> = {}): Promise<T> {
+	public async get<T, D = undefined>(
+		url: string,
+		options: APIRequestOptions<D> = {}
+	): Promise<T> {
 		const requestController = this.addRequest(options);
 		return requestController.dispatch<T, D>(
 			(requestConfig) => this._api.get(url, requestConfig),
@@ -73,7 +79,11 @@ export class APIController {
 		);
 	}
 
-	public async post<T, D>(url: string, data?: D, options: APIRequestOptions<D> = {}): Promise<T> {
+	public async post<T, D>(
+		url: string,
+		data?: D,
+		options: APIRequestOptions<D> = {}
+	): Promise<T> {
 		const requestController = this.addRequest(options);
 		return requestController.dispatch<T, D>(
 			(requestConfig) => this._api.post(url, data, requestConfig),
@@ -81,7 +91,11 @@ export class APIController {
 		);
 	}
 
-	public async put<T, D>(url: string, data?: D, options: APIRequestOptions<D> = {}): Promise<T> {
+	public async put<T, D>(
+		url: string,
+		data?: D,
+		options: APIRequestOptions<D> = {}
+	): Promise<T> {
 		const requestController = this.addRequest(options);
 		return requestController.dispatch<T, D>(
 			(requestConfig) => this._api.put(url, data, requestConfig),
@@ -89,7 +103,11 @@ export class APIController {
 		);
 	}
 
-	public async patch<T, D>(url: string, data?: D, options: APIRequestOptions<D> = {}): Promise<T> {
+	public async patch<T, D>(
+		url: string,
+		data?: D,
+		options: APIRequestOptions<D> = {}
+	): Promise<T> {
 		const requestController = this.addRequest(options);
 		return requestController.dispatch<T, D>(
 			(requestConfig) => this._api.put(url, data, requestConfig),
@@ -97,7 +115,10 @@ export class APIController {
 		);
 	}
 
-	public async delete<T, D>(url: string, options: APIRequestOptions<D> = {}): Promise<T> {
+	public async delete<T, D>(
+		url: string,
+		options: APIRequestOptions<D> = {}
+	): Promise<T> {
 		const requestController = this.addRequest(options);
 		return requestController.dispatch<T, D>(
 			(requestConfig) => this._api.delete(url, requestConfig),

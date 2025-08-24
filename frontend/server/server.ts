@@ -43,7 +43,10 @@ export default class Server {
 
 	private configureMiddlewares() {
 		this.app.use(compression());
-		this.app.use('/assets', express.static(resolve(__client_dirname, 'assets')));
+		this.app.use(
+			'/assets',
+			express.static(resolve(__client_dirname, 'assets'))
+		);
 	}
 
 	private configureRoutes() {
@@ -61,7 +64,8 @@ export default class Server {
 			const { page } = match.groups!;
 
 			const renderConfigFile = resolve(renderConfigsDir, file);
-			const renderConfig: PageRenderConfig = (await import(renderConfigFile)).default;
+			const renderConfig = (await import(renderConfigFile))
+				.default as PageRenderConfig;
 			this.pageRenderConfigs.set(renderConfig.path, renderConfig);
 
 			const templateHTMLPath = resolve(__pages_dirname, page, 'index.html');
@@ -73,11 +77,17 @@ export default class Server {
 	}
 
 	private async loadEntryServerRenderFunctions() {
-		this.render = await import(resolve(__dist_dirname, 'server/entry-server.js'));
-		console.log(`🔖 Loaded SSR render modules`);
+		this.render = await import(
+			resolve(__dist_dirname, 'server/entry-server.js')
+		);
+		console.log(`🔖 Loaded SSR renderer modules`);
 	}
 
-	private servePage(renderConfig: PageRenderConfig, request: Request, response: Response) {
+	private servePage(
+		renderConfig: PageRenderConfig,
+		request: Request,
+		response: Response
+	) {
 		try {
 			const templateHTML = this.templateContents.get(renderConfig.path)!;
 

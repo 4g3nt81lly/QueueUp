@@ -1,5 +1,9 @@
 import { io, Socket } from 'socket.io-client';
-import { SocketEmitResponseError, SocketEmitTimeoutError, SocketError } from '../../errors/socket';
+import {
+	SocketEmitResponseError,
+	SocketEmitTimeoutError,
+	SocketError,
+} from '../../errors/socket';
 import type { SocketResponse } from '../../types/socket';
 import type { Nullable } from '../../types/utility';
 import { debugLog, getAccessToken, isPresent } from '../helpers';
@@ -48,7 +52,9 @@ export class SocketController {
 		this._socket.disconnect();
 	}
 
-	public setAuthSource(callback: Nullable<() => Nullable<string>>): SocketController {
+	public setAuthSource(
+		callback: Nullable<() => Nullable<string>>
+	): SocketController {
 		this._getAccessToken = callback ?? getAccessToken;
 		return this;
 	}
@@ -58,10 +64,16 @@ export class SocketController {
 		return this;
 	}
 
-	public async emitWithCallback<ResponseType, ErrorInfo = any>(event: string, timeout: number, ...args: any[]) {
+	public async emitWithCallback<ResponseType, ErrorInfo = any>(
+		event: string,
+		timeout: number,
+		...args: any[]
+	) {
 		let response: SocketResponse<ResponseType>;
 		try {
-			response = await this._socket.timeout(timeout * 1000).emitWithAck(event, ...args);
+			response = await this._socket
+				.timeout(timeout * 1000)
+				.emitWithAck(event, ...args);
 		} catch {
 			throw new SocketEmitTimeoutError(timeout);
 		}

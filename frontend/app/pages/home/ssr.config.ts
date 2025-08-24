@@ -7,6 +7,8 @@ export default {
 	},
 	postprocess({ templateHTML, renderResult }) {
 		const { head = '', body } = renderResult;
-		return templateHTML.replace('<!--home-head-->', head).replace('<!--home-root-->', body);
+		return templateHTML
+			.replace('<!--home-head-->', head)
+			.replace('<!--home-root-->', body);
 	},
 } satisfies PageRenderConfig;
