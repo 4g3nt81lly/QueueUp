@@ -1,4 +1,5 @@
 import express from 'express';
+import { connectMongoDB, disconnectMongoDB } from './database';
 import Server from './server';
 
 export default class App {
@@ -12,6 +13,7 @@ export default class App {
 
 	public async start() {
 		try {
+			await connectMongoDB();
 			await this.server.start();
 
 			process.on('SIGINT', () => this.stop());
@@ -25,9 +27,10 @@ export default class App {
 	public async stop() {
 		try {
 			this.server.stop();
+			await disconnectMongoDB();
 		} finally {
-			console.log('\n🛑 Server stopped!');
-			process.exit();
+			console.log('🛑 Server stopped!');
+			process.exit(0);
 		}
 	}
 }

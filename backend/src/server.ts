@@ -23,7 +23,7 @@ export default class Server {
 
 	public async start() {
 		console.log('🚪 Frontend origin:', FRONTEND_ORIGIN);
-
+		
 		await new Promise<void>((resolve, reject) => {
 			this.httpServer = this.app.listen(PORT, (error?: Error) => {
 				if (!error) {
@@ -32,9 +32,9 @@ export default class Server {
 				reject(new Error(`❌ Server could not be started: ${error.message}`));
 			});
 		});
-		console.log(`🚀 Server started, listening on port ${PORT}...`);
-
 		this.initializeSocketServer();
+
+		console.log(`🚀 Server started, listening on port ${PORT}...`);
 	}
 
 	public stop() {
