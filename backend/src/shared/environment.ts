@@ -7,3 +7,5 @@ export const MONGODB_URI = process.env.MONGODB_URI;
 export const FRONTEND_ORIGIN =
 	process.env.FRONTEND_ORIGIN ??
 	(PRODUCTION ? 'http://localhost:3000' : 'http://localhost:5173');
+
+export const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET!;

@@ -5,7 +5,7 @@
 	"type": "commonjs",
 	"scripts": {
 		"build": "tsc -b",
-		"dev": "NODE_ENV=development nodemon src/main.ts",
+		"dev": "nodemon src/main.ts",
 		"start": "NODE_ENV=production node dist/main.js",
 		"clean": "rm -rf dist node_modules/.tmp",
 		"prettier": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,md}\""
@@ -14,8 +14,10 @@
 		"bcryptjs": "^3.0.2",
 		"cors": "^2.8.5",
 		"dotenv": "^17.2.1",
+		"emoji-regex": "^10.4.0",
 		"express": "^5.1.0",
 		"http-status-codes": "^2.3.0",
+		"jsonwebtoken": "^9.0.2",
 		"mongodb": "^6.18.0",
 		"mongoose": "^8.18.0",
 		"socket.io": "^4.8.1",
@@ -24,16 +26,24 @@
 	"devDependencies": {
 		"@types/cors": "^2.8.19",
 		"@types/express": "^5.0.3",
+		"@types/jsonwebtoken": "^9.0.10",
 		"@types/node": "^24.2.1",
 		"nodemon": "^3.1.10",
 		"prettier": "^3.6.2",
 		"ts-node": "^10.9.2",
+		"tsconfig-paths": "^4.2.0",
 		"typescript": "^5.9.2"
 	},
 	"nodemonConfig": {
 		"watch": [
 			"src"
 		],
-		"ext": "js,ts,json"
+		"ext": "js,ts,json",
+		"env": {
+			"NODE_ENV": "development"
+		},
+		"execMap": {
+			"ts": "ts-node -r tsconfig-paths/register"
+		}
 	}
 }

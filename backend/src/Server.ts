@@ -3,8 +3,9 @@ import express, { type Request, type Response } from 'express';
 import type http from 'http';
 import { StatusCodes } from 'http-status-codes';
 import { Server as SocketIOServer } from 'socket.io';
+import { InternalServerError, NotFoundError, ServerError } from './errors/server';
 import routerConfig from './routers/config';
-import { FRONTEND_ORIGIN, PORT } from './shared';
+import { FRONTEND_ORIGIN, PORT } from './shared/environment';
 import { IRouter } from './types/api';
 import { makeEndpointRequestHandler, sendErrorResponse } from './utils/helpers';
 
@@ -92,12 +93,12 @@ export default class Server {
 	private registerErrorHandlers() {
 		// TODO: register custom error handlers
 		this.app.use((request: Request, response: Response) => {
-			let errorName = 'ServerError';
+			let error: ServerError = new InternalServerError();
 			if (response.statusCode !== StatusCodes.INTERNAL_SERVER_ERROR) {
 				response.status(StatusCodes.NOT_FOUND);
-				errorName = 'NotFoundError';
+				error = new NotFoundError();
 			}
-			sendErrorResponse({ error: errorName }, response);
+			sendErrorResponse(error, response);
 		});
 	}
 

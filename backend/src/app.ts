@@ -1,6 +1,6 @@
 import express from 'express';
 import { connectMongoDB, disconnectMongoDB } from './database';
-import Server from './server';
+import Server from '~/Server';
 
 export default class App {
 	private app: express.Application;

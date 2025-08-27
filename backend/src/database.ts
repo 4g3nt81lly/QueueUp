@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { MONGODB_URI } from './shared';
+import { MONGODB_URI } from './shared/environment';
 
 // Make mongoose schema validator acknowledge empty string for required fields
 mongoose.Schema.Types.String.checkRequired((value) => typeof value === 'string');
