@@ -1,7 +1,10 @@
-import { Schema, model, type ValidatorProps } from 'mongoose';
+import { Schema, model, type Types, type ValidatorProps } from 'mongoose';
 import Constants from '~/shared/constants';
 import Patterns from '~/shared/patterns';
-import queryRoomSettingsSchema from './QueueRoomSettings';
+import QueueRoomSettings, {
+	queueRoomSettingsSchema,
+	type IQueueRoomSettings,
+} from './QueueRoomSettings';
 
 export enum QueueRoomStatus {
 	CLOSED = 0,
@@ -10,13 +13,29 @@ export enum QueueRoomStatus {
 	OPEN = 3,
 }
 
-export const queueRoomSchema = new Schema(
+export interface IQueueRoom {
+	readonly _id: Types.ObjectId;
+	readonly user: Types.ObjectId;
+	readonly owner: Types.ObjectId;
+	emoji?: string;
+	name: string;
+	host: string;
+	email?: string;
+	description: string;
+	status: QueueRoomStatus;
+	capacity: number;
+	code: string;
+	readonly entries: Types.ObjectId[];
+	readonly skippedEntries: Types.ObjectId[];
+	readonly settings: IQueueRoomSettings;
+}
+
+export const queueRoomSchema = new Schema<IQueueRoom>(
 	{
 		user: {
 			type: Schema.Types.ObjectId,
 			ref: 'User',
 			required: [true, 'Queue room must have an owner.'],
-			immutable: [true, 'Queue room owner cannot be changed.'],
 			alias: 'owner',
 		},
 		emoji: {
@@ -126,9 +145,9 @@ export const queueRoomSchema = new Schema(
 			default: () => [],
 		},
 		settings: {
-			type: queryRoomSettingsSchema,
+			type: queueRoomSettingsSchema,
 			required: true,
-			default: () => {},
+			default: () => new QueueRoomSettings(),
 		},
 	},
 	{
@@ -137,4 +156,4 @@ export const queueRoomSchema = new Schema(
 	}
 );
 
-export default model('QueueRoom', queueRoomSchema, 'queue-rooms');
+export default model<IQueueRoom>('QueueRoom', queueRoomSchema, 'queue-rooms');

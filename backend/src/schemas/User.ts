@@ -1,8 +1,17 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model, type Types } from 'mongoose';
 import Constants from '~/shared/constants';
 import Patterns from '~/shared/patterns';
 
-export const userSchema = new Schema(
+export interface IUser {
+	readonly _id: Types.ObjectId;
+	name: string;
+	email: string;
+	password: string;
+	rooms: Types.ObjectId[];
+	queues: Types.ObjectId[];
+}
+
+export const userSchema = new Schema<IUser>(
 	{
 		name: {
 			type: String,
@@ -54,4 +63,4 @@ export const userSchema = new Schema(
 	{ optimisticConcurrency: true }
 );
 
-export default model('User', userSchema, 'users');
+export default model<IUser>('User', userSchema, 'users');

@@ -1,8 +1,20 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model, type Types } from 'mongoose';
 import Constants from '~/shared/constants';
 import Patterns from '~/shared/patterns';
 
-export const queueEntrySchema = new Schema(
+export interface IQueueEntry {
+	readonly _id: Types.ObjectId;
+	readonly roomId: Types.ObjectId;
+	topic: string;
+	description: string;
+	guestName: string;
+	guestUser?: Types.ObjectId;
+	guestEmail?: string;
+	readonly createdAt: Date;
+	readonly updatedAt: Date;
+}
+
+export const queueEntrySchema = new Schema<IQueueEntry>(
 	{
 		roomId: {
 			type: Schema.Types.ObjectId,
@@ -39,4 +51,4 @@ export const queueEntrySchema = new Schema(
 	{ timestamps: true, optimisticConcurrency: true }
 );
 
-export default model('QueueEntry', queueEntrySchema, 'queue-entries');
+export default model<IQueueEntry>('QueueEntry', queueEntrySchema, 'queue-entries');

@@ -1,23 +1,29 @@
 import { StatusCodes } from 'http-status-codes';
-import mongoose, { type AnyBulkWriteOperation } from 'mongoose';
+import mongoose, {
+	type AnyBulkWriteOperation,
+	type HydratedDocument,
+	type UpdateQuery,
+} from 'mongoose';
 import BaseError from '~/errors/base';
 import { InvalidRequestError, UnauthorizedRequestError } from '~/errors/rest';
-import { InternalServerError, NotFoundError } from '~/errors/server';
+import { InternalServerError } from '~/errors/server';
 import { authenticateUser } from '~/middleware/auth';
+import { verifyQueueRoom } from '~/middleware/queue-room';
 import QueueEntry from '~/schemas/queues/QueueEntry';
-import QueueRoom from '~/schemas/queues/QueueRoom';
-import User from '~/schemas/User';
+import QueueRoom, { type IQueueRoom } from '~/schemas/queues/QueueRoom';
+import User, { type IUser } from '~/schemas/User';
 import Constants from '~/shared/constants';
 import type { IRouter, RouterRequestHandler } from '~/types/api';
 import type { AuthUserInfo } from '~/types/auth';
+import type { Nullable } from '~/types/utility';
 import { generateQueueRoomCode } from '~/utils/helpers';
 
 const handleCreate: RouterRequestHandler = async (request, response) => {
 	const { id: userId }: AuthUserInfo = response.locals.user;
 	try {
 		const newQueueRoom = await mongoose.connection.transaction(async function (session) {
-			const { _id: _, ...roomInfo } = request.body;
-			const newQueueRoom = new QueueRoom(roomInfo);
+			const { _id: _, ...queueRoomInfo } = request.body;
+			const newQueueRoom = new QueueRoom(queueRoomInfo);
 			// Verify if the user matches the authentication payload
 			if (newQueueRoom.user.toHexString() !== userId) {
 				response.status(StatusCodes.UNAUTHORIZED);
@@ -53,6 +59,7 @@ const handleCreate: RouterRequestHandler = async (request, response) => {
 			const message = Object.values(error.errors)[0]?.message;
 			throw new InvalidRequestError(message);
 		}
+		console.error(error);
 		response.status(StatusCodes.INTERNAL_SERVER_ERROR);
 		throw new InternalServerError();
 	}
@@ -61,22 +68,8 @@ const handleCreate: RouterRequestHandler = async (request, response) => {
 const handleDelete: RouterRequestHandler = async (request, response) => {
 	const { id: userId }: AuthUserInfo = response.locals.user;
 	const { id: queueRoomId } = request.body;
-	if (typeof queueRoomId !== 'string') {
-		response.status(StatusCodes.BAD_REQUEST);
-		throw new InvalidRequestError('Missing query room ID.');
-	}
 	try {
 		await mongoose.connection.transaction(async function (session) {
-			const queueRoom = await QueueRoom.findById(queueRoomId).select('user').exec();
-			if (queueRoom === null) {
-				response.status(StatusCodes.NOT_FOUND);
-				throw new NotFoundError();
-			}
-			// Verify if the user matches the authentication payload
-			if (queueRoom.user.toHexString() !== userId) {
-				response.status(StatusCodes.UNAUTHORIZED);
-				throw new UnauthorizedRequestError();
-			}
 			// Delete the queue room and retrieves entries, which locks the document before commit/abort
 			const deletedQueueRoom = await QueueRoom.findByIdAndDelete(queueRoomId, { session })
 				.select('entries skippedEntries')
@@ -91,7 +84,7 @@ const handleDelete: RouterRequestHandler = async (request, response) => {
 			await QueueEntry.deleteMany({ roomId: deletedQueueRoom._id }, { session }).exec();
 
 			// Using bulkWrite to perform batch updates to the users collection
-			const writes: AnyBulkWriteOperation[] = [
+			const writes: AnyBulkWriteOperation<IUser>[] = [
 				// Delete the queue room from the authenticated user
 				{
 					updateOne: {
@@ -115,10 +108,6 @@ const handleDelete: RouterRequestHandler = async (request, response) => {
 			}
 			await User.bulkWrite(writes, { session });
 		});
-		response.status(StatusCodes.OK);
-		return {
-			message: `Successfully deleted queue room with id '${queueRoomId}'.`,
-		};
 	} catch (error) {
 		if (error instanceof BaseError) {
 			throw error;
@@ -130,6 +119,69 @@ const handleDelete: RouterRequestHandler = async (request, response) => {
 		response.status(StatusCodes.INTERNAL_SERVER_ERROR);
 		throw new InternalServerError();
 	}
+	response.status(StatusCodes.OK);
+	return {
+		message: `Successfully deleted queue room with id '${queueRoomId}'.`,
+	};
+};
+
+const handleEdit: RouterRequestHandler = async (request, response) => {
+	const { id: queueRoomId, ...queueRoomInfo } = request.body;
+	// prettier-ignore
+	const editablePaths: (keyof IQueueRoom)[] = [
+		'emoji', 'name', 'host', 'description', 'email',
+		'status', 'capacity', /* Excluding paths: code, _id, id */
+		'settings',
+	];
+	const setItems: Record<string, any> = {};
+	const unsetItems: Record<string, 0> = {};
+	for (const path of editablePaths) {
+		const newValue = queueRoomInfo[path];
+		if (newValue === undefined) continue;
+		if (newValue === null) {
+			unsetItems[path] = 0;
+		} else {
+			setItems[path] = newValue;
+		}
+	}
+	const updateQuery = {
+		...(Object.keys(setItems).length > 0 ? { $set: setItems } : {}),
+		...(Object.keys(unsetItems).length > 0 ? { $unset: unsetItems } : {}),
+	} satisfies UpdateQuery<IQueueRoom>;
+
+	if (Object.keys(updateQuery).length > 0) {
+		try {
+			await mongoose.connection.transaction(async function (session) {
+				await QueueRoom.findByIdAndUpdate(queueRoomId, updateQuery, {
+					session,
+					runValidators: true,
+					returnDocument: 'after',
+				}).exec();
+				// TODO: Return diff between query and updated documents
+				// TODO: Apply other path-specific changes
+			});
+		} catch (error) {
+			if (error instanceof BaseError) {
+				throw error;
+			} else if (error instanceof mongoose.Error.ValidationError) {
+				response.status(StatusCodes.UNPROCESSABLE_ENTITY);
+				const message = Object.values(error.errors)[0]?.message;
+				throw new InvalidRequestError(message);
+			} else if (error instanceof mongoose.Error) {
+				response.status(StatusCodes.UNPROCESSABLE_ENTITY);
+				throw new InvalidRequestError(error.message);
+			}
+			console.error(error);
+			response.status(StatusCodes.INTERNAL_SERVER_ERROR);
+			throw new InternalServerError();
+		}
+	}
+	response.status(StatusCodes.OK);
+	return {
+		message: `Successfully updated queue room with id '${queueRoomId}'.`,
+		updated: setItems,
+		removed: Object.keys(unsetItems),
+	};
 };
 
 export default {
@@ -144,7 +196,14 @@ export default {
 		{
 			path: '/delete',
 			method: 'delete',
+			middlware: [verifyQueueRoom],
 			handler: handleDelete,
+		},
+		{
+			path: '/edit',
+			method: 'put',
+			middlware: [verifyQueueRoom],
+			handler: handleEdit,
 		},
 	],
 } as IRouter;

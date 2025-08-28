@@ -1,32 +1,47 @@
-import { Schema } from 'mongoose';
+import { Schema, model } from 'mongoose';
 
-export default new Schema(
+export interface IQueueRoomSettings {
+	queueVisible?: boolean;
+	currentGuestVisible?: boolean;
+	activityLogVisible?: boolean;
+	requiresJoinPermission?: boolean;
+	notifyGuestsOverride?: boolean;
+}
+
+export const queueRoomSettingsSchema = new Schema<IQueueRoomSettings>(
 	{
 		queueVisible: {
 			type: Boolean,
-			required: true,
-			default: true,
+			get(value: any) {
+				return value === undefined ? true : value;
+			},
 		},
 		currentGuestVisible: {
 			type: Boolean,
-			required: true,
-			default: true,
+			get(value: any) {
+				return value === undefined ? true : value;
+			},
 		},
 		activityLogVisible: {
 			type: Boolean,
-			required: true,
-			default: true,
+			get(value: any) {
+				return value === undefined ? true : value;
+			},
 		},
 		requiresJoinPermission: {
 			type: Boolean,
-			required: true,
-			default: false,
+			get(value: any) {
+				return value === undefined ? false : value;
+			},
 		},
 		notifyGuestsOverride: {
 			type: Boolean,
-			required: true,
-			default: false,
+			get(value: any) {
+				return value === undefined ? false : value;
+			},
 		},
 	},
 	{ _id: false, versionKey: false }
 );
+
+export default model<IQueueRoomSettings>('QueueRoomSettings', queueRoomSettingsSchema);
