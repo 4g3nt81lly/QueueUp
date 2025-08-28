@@ -3,12 +3,12 @@ import { StatusCodes } from 'http-status-codes';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { CredentialValidationError } from '~/errors/auth';
-import { APIRequestInvalidTypeError, APIRequestUnauthorizedError } from '~/errors/rest';
+import { InvalidRequestError, UnauthorizedRequestError } from '~/errors/rest';
 import { InternalServerError } from '~/errors/server';
 import User from '~/schemas/User';
 import Constants from '~/shared/constants';
 import { ACCESS_TOKEN_SECRET } from '~/shared/environment';
-import { IRouter } from '~/types/api';
+import type { IRouter } from '~/types/api';
 import { AuthUserInfo } from '~/types/auth';
 
 export default {
@@ -21,7 +21,7 @@ export default {
 				const { email, password } = request.body;
 				if (typeof email !== 'string' || typeof password !== 'string') {
 					response.status(StatusCodes.BAD_REQUEST);
-					throw new APIRequestInvalidTypeError('Invalid email or password type.');
+					throw new InvalidRequestError('Invalid email or password type.');
 				}
 				const userDocument = await User.findOne({ email })
 					.select('name email password')
@@ -43,7 +43,7 @@ export default {
 					}
 				}
 				response.status(StatusCodes.UNAUTHORIZED);
-				throw new APIRequestUnauthorizedError('Incorrect email or password.');
+				throw new UnauthorizedRequestError('Incorrect email or password.');
 			},
 		},
 		{
@@ -57,46 +57,45 @@ export default {
 					typeof password !== 'string'
 				) {
 					response.status(StatusCodes.BAD_REQUEST);
-					throw new APIRequestInvalidTypeError(
-						'Invalid username, email, or password type.'
-					);
+					throw new InvalidRequestError('Invalid username, email, or password type.');
 				}
 				if (password.length < Constants.USER_PASSWORD_MIN_LENGTH) {
 					response.status(StatusCodes.UNPROCESSABLE_ENTITY);
-					throw new CredentialValidationError('Password must be at least 8 characters long.');
+					throw new CredentialValidationError(
+						'Password must be at least 8 characters long.'
+					);
 				}
-
-				const hashedPassword = bcrypt.hashSync(password, 10);
-				const newUserDocument = new User({
-					name: username,
-					email,
-					password: hashedPassword,
-				});
-                try {
-                    const newUser = (await newUserDocument.save()).toJSON();
-                    const jwtPayload = <AuthUserInfo>{
-                        id: newUser._id.toHexString(),
-                        username: newUser.name,
-                    };
-                    response.status(StatusCodes.CREATED);
-                    return {
-                        id: newUser._id.toHexString(),
-                        name: newUser.name,
-                        token: jwt.sign(jwtPayload, ACCESS_TOKEN_SECRET),
-                    };
-                } catch (error: any) {
-                    if (error instanceof mongoose.Error.ValidationError) {
-                        response.status(StatusCodes.UNPROCESSABLE_ENTITY);
-                        throw new CredentialValidationError(error.message);
-                    } else if (error.code === 11000) {
-                        // Duplicate key error with email
-                        response.status(StatusCodes.UNPROCESSABLE_ENTITY);
-                        throw new CredentialValidationError('A user with this email already exists.');
-                    } else {
-                        response.status(StatusCodes.INTERNAL_SERVER_ERROR);
-                        throw new InternalServerError();
-                    }
-                }
+				try {
+					const newUserDocument = (
+						await User.create({
+							name: username,
+							email,
+							password: bcrypt.hashSync(password, 10),
+						})
+					).toJSON();
+					const jwtPayload = <AuthUserInfo>{
+						id: newUserDocument._id.toHexString(),
+						username: newUserDocument.name,
+					};
+					response.status(StatusCodes.CREATED);
+					return {
+						id: jwtPayload.id,
+						name: jwtPayload.username,
+						token: jwt.sign(jwtPayload, ACCESS_TOKEN_SECRET),
+					};
+				} catch (error: any) {
+					if (error instanceof mongoose.Error.ValidationError) {
+						response.status(StatusCodes.UNPROCESSABLE_ENTITY);
+						throw new CredentialValidationError(error.message);
+					} else if (error.code === Constants.MONGO_DUPLICATE_KEY_ERROR) {
+						// Duplicate key error with email
+						response.status(StatusCodes.UNPROCESSABLE_ENTITY);
+						throw new CredentialValidationError('A user with this email already exists.');
+					} else {
+						response.status(StatusCodes.INTERNAL_SERVER_ERROR);
+						throw new InternalServerError();
+					}
+				}
 			},
 		},
 	],

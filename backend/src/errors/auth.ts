@@ -1,5 +1,5 @@
 import { APIError } from './rest';
 
-export class UserAuthorizationError extends APIError {};
+export class UserCredentialError extends APIError {}
 
-export class CredentialValidationError extends UserAuthorizationError {};
+export class CredentialValidationError extends UserCredentialError {}

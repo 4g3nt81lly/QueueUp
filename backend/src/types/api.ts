@@ -35,6 +35,7 @@ export interface IRouterEndpointError {
 }
 
 export type RouterMiddleware<
+	ResponseType = void,
 	Params = Record<string, string>,
 	RequestBody = any,
 	RequestQuery = Query,
@@ -44,7 +45,7 @@ export type RouterMiddleware<
 	request: Request<Params, ResponseBody, RequestBody, RequestQuery, Info>,
 	response: Response<ResponseBody, Info>,
 	next: NextFunction
-) => void;
+) => ResponseType;
 
 export type RouterRequestHandler<
 	ResponseType = any,

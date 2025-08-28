@@ -1,5 +1,6 @@
 import { StatusCodes } from 'http-status-codes';
 import type { IRouter } from '../types/api';
+import QueueRoomRouter from './QueueRoomRouter';
 import UserRouter from './UserRouter';
 
 export default {
@@ -20,5 +21,5 @@ export default {
 			},
 		},
 	],
-	subrouters: [UserRouter],
+	subrouters: [UserRouter, QueueRoomRouter],
 } as IRouter;

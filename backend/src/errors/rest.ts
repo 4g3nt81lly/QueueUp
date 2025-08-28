@@ -1,11 +1,15 @@
 import BaseError from './base';
 
 export class APIError extends BaseError {
-    public constructor(message?: string) {
-        super(undefined, message);
-    }
+	public constructor(message?: string) {
+		super(undefined, message);
+	}
 }
 
-export class APIRequestUnauthorizedError extends APIError {}
+export class UnauthorizedRequestError extends APIError {
+	public constructor(message?: string) {
+		super(message ?? 'Unauthorized request.');
+	}
+}
 
-export class APIRequestInvalidTypeError extends APIError {}
+export class InvalidRequestError extends APIError {}

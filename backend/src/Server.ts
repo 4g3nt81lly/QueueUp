@@ -6,8 +6,12 @@ import { Server as SocketIOServer } from 'socket.io';
 import { InternalServerError, NotFoundError, ServerError } from './errors/server';
 import routerConfig from './routers/config';
 import { FRONTEND_ORIGIN, PORT } from './shared/environment';
-import { IRouter } from './types/api';
-import { makeEndpointRequestHandler, sendErrorResponse } from './utils/helpers';
+import type { IRouter } from './types/api';
+import {
+	sendErrorResponse,
+	makeEndpointRequestHandler as wrapEndpointRequestHandler,
+	wrapMiddleware,
+} from './utils/helpers';
 
 export default class Server {
 	private readonly app: express.Application;
@@ -24,7 +28,7 @@ export default class Server {
 
 	public async start() {
 		console.log('🚪 Frontend origin:', FRONTEND_ORIGIN);
-		
+
 		await new Promise<void>((resolve, reject) => {
 			this.httpServer = this.app.listen(PORT, (error?: Error) => {
 				if (!error) {
@@ -71,16 +75,16 @@ export default class Server {
 		}
 		for (const iRouter of iRouters) {
 			const router = express.Router();
-			// register middleware before registering endpoint handlers
+			// Register middleware before registering endpoint handlers
 			if (iRouter.middleware && iRouter.middleware.length > 0) {
-				router.use(iRouter.middleware);
+				router.use(iRouter.middleware.map(wrapMiddleware));
 			}
 
 			for (const endpoint of iRouter.endpoints ?? []) {
 				router[endpoint.method](
 					endpoint.path,
-					...(endpoint.middlware ?? []),
-					makeEndpointRequestHandler(endpoint.handler)
+					...(endpoint.middlware ?? []).map(wrapMiddleware),
+					wrapEndpointRequestHandler(endpoint.handler)
 				);
 			}
 			parentRouter.use(iRouter.path, router);

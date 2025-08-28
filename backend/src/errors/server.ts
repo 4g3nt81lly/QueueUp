@@ -6,6 +6,14 @@ export abstract class ServerError extends BaseError {
 	}
 }
 
-export class NotFoundError extends ServerError {}
+export class NotFoundError extends ServerError {
+	public constructor(message?: string) {
+		super(message ?? 'The resource cannot be found.');
+	}
+}
 
-export class InternalServerError extends ServerError {}
+export class InternalServerError extends ServerError {
+	public constructor(message?: string) {
+		super(message ?? 'An unexpected error occurred on the server.');
+	}
+}
