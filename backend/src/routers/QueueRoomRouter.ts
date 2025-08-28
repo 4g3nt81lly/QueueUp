@@ -16,7 +16,8 @@ const handleCreate: RouterRequestHandler = async (request, response) => {
 	const { id: userId }: AuthUserInfo = response.locals.user;
 	try {
 		const newQueueRoom = await mongoose.connection.transaction(async function (session) {
-			const newQueueRoom = new QueueRoom(request.body);
+			const { _id: _, ...roomInfo } = request.body;
+			const newQueueRoom = new QueueRoom(roomInfo);
 			// Verify if the user matches the authentication payload
 			if (newQueueRoom.user.toHexString() !== userId) {
 				response.status(StatusCodes.UNAUTHORIZED);
