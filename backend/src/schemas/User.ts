@@ -7,8 +7,6 @@ export interface IUser {
 	name: string;
 	email: string;
 	password: string;
-	rooms: Types.ObjectId[];
-	queues: Types.ObjectId[];
 }
 
 export const userSchema = new Schema<IUser>(
@@ -32,32 +30,12 @@ export const userSchema = new Schema<IUser>(
 				Constants.USER_EMAIL_MAX_LENGTH,
 				`User email must not be longer than ${Constants.USER_EMAIL_MAX_LENGTH} characters.`,
 			],
-			match: [Patterns.USER_EMAIL, `'{VALUE}' is not a valid user email.`],
+			match: [Patterns.USER_EMAIL, `'{VALUE}' is not a valid email address.`],
 		},
 		password: {
 			type: String,
 			required: [true, 'Password is required.'],
 			select: false,
-		},
-		rooms: {
-			type: [
-				{
-					type: Schema.Types.ObjectId,
-					ref: 'QueueRoom',
-				},
-			],
-			required: true,
-			default: () => [],
-		},
-		queues: {
-			type: [
-				{
-					type: Schema.Types.ObjectId,
-					ref: 'QueueEntry',
-				},
-			],
-			required: true,
-			default: () => [],
 		},
 	},
 	{ optimisticConcurrency: true }

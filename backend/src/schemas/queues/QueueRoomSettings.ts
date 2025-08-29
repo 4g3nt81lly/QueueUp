@@ -1,4 +1,4 @@
-import { Schema, model } from 'mongoose';
+import { Schema } from 'mongoose';
 
 export interface IQueueRoomSettings {
 	queueVisible?: boolean;
@@ -8,7 +8,15 @@ export interface IQueueRoomSettings {
 	notifyGuestsOverride?: boolean;
 }
 
-export const queueRoomSettingsSchema = new Schema<IQueueRoomSettings>(
+export const editableQueueRoomSettingsPaths: (keyof IQueueRoomSettings)[] = [
+	'queueVisible',
+	'currentGuestVisible',
+	'activityLogVisible',
+	'requiresJoinPermission',
+	'notifyGuestsOverride',
+];
+
+export default new Schema<IQueueRoomSettings>(
 	{
 		queueVisible: {
 			type: Boolean,
@@ -43,5 +51,3 @@ export const queueRoomSettingsSchema = new Schema<IQueueRoomSettings>(
 	},
 	{ _id: false, versionKey: false }
 );
-
-export default model<IQueueRoomSettings>('QueueRoomSettings', queueRoomSettingsSchema);

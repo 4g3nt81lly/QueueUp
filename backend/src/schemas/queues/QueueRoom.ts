@@ -1,10 +1,8 @@
 import { Schema, model, type Types, type ValidatorProps } from 'mongoose';
 import Constants from '~/shared/constants';
 import Patterns from '~/shared/patterns';
-import QueueRoomSettings, {
-	queueRoomSettingsSchema,
-	type IQueueRoomSettings,
-} from './QueueRoomSettings';
+import type Timestamped from '../Timestamped';
+import queueRoomSettingsSchema, { type IQueueRoomSettings } from './QueueRoomSettings';
 
 export enum QueueRoomStatus {
 	CLOSED = 0,
@@ -13,10 +11,11 @@ export enum QueueRoomStatus {
 	OPEN = 3,
 }
 
-export interface IQueueRoom {
+export interface IQueueRoom extends Timestamped {
 	readonly _id: Types.ObjectId;
 	readonly user: Types.ObjectId;
 	readonly owner: Types.ObjectId;
+	code: string;
 	emoji?: string;
 	name: string;
 	host: string;
@@ -24,10 +23,8 @@ export interface IQueueRoom {
 	description: string;
 	status: QueueRoomStatus;
 	capacity: number;
-	code: string;
-	readonly entries: Types.ObjectId[];
-	readonly skippedEntries: Types.ObjectId[];
-	readonly settings: IQueueRoomSettings;
+	skippedEntries: Types.ObjectId[];
+	settings: IQueueRoomSettings;
 }
 
 export const queueRoomSchema = new Schema<IQueueRoom>(
@@ -37,6 +34,13 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 			ref: 'User',
 			required: [true, 'Queue room must have an owner.'],
 			alias: 'owner',
+		},
+		code: {
+			type: String,
+			required: [true, 'Queue room must have a join code.'],
+			unique: [true, 'Queue room join code {VALUE} already exists.'],
+			trim: true,
+			match: [Patterns.QROOM_CODE, `'{VALUE}' is not a valid queue room join code.`],
 		},
 		emoji: {
 			type: String,
@@ -84,7 +88,7 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 				Constants.USER_EMAIL_MAX_LENGTH,
 				`Queue room host email must not be longer than ${Constants.USER_EMAIL_MAX_LENGTH} characters.`,
 			],
-			match: [Patterns.USER_EMAIL, `'{VALUE}' is not a valid email.`],
+			match: [Patterns.USER_EMAIL, `'{VALUE}' is not a valid email address.`],
 		},
 		description: {
 			type: String,
@@ -117,23 +121,6 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 				},
 			},
 		},
-		code: {
-			type: String,
-			required: [true, 'Queue room must have a join code.'],
-			unique: [true, 'Queue room join code {VALUE} already exists.'],
-			trim: true,
-			match: [Patterns.QROOM_CODE, `'{VALUE}' is not a valid queue room join code.`],
-		},
-		entries: {
-			type: [
-				{
-					type: Schema.Types.ObjectId,
-					ref: 'QueueEntry',
-				},
-			],
-			required: true,
-			default: () => [],
-		},
 		skippedEntries: {
 			type: [
 				{
@@ -147,10 +134,20 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 		settings: {
 			type: queueRoomSettingsSchema,
 			required: true,
-			default: () => new QueueRoomSettings(),
+			default: () => <IQueueRoomSettings>{},
 		},
 	},
 	{
+		virtuals: {
+			entries: {
+				options: {
+					ref: 'QueueEntry',
+					foreignField: 'roomId',
+					localField: '_id',
+					options: { sort: { createdAt: -1 } },
+				},
+			},
+		},
 		timestamps: true,
 		optimisticConcurrency: true,
 	}

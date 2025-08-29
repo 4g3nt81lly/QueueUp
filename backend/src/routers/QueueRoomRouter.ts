@@ -1,8 +1,6 @@
 import { StatusCodes } from 'http-status-codes';
 import mongoose, {
-	type AnyBulkWriteOperation,
-	type HydratedDocument,
-	type UpdateQuery,
+	type UpdateQuery
 } from 'mongoose';
 import BaseError from '~/errors/base';
 import { InvalidRequestError, UnauthorizedRequestError } from '~/errors/rest';
@@ -11,12 +9,12 @@ import { authenticateUser } from '~/middleware/auth';
 import { verifyQueueRoom } from '~/middleware/queue-room';
 import QueueEntry from '~/schemas/queues/QueueEntry';
 import QueueRoom, { type IQueueRoom } from '~/schemas/queues/QueueRoom';
-import User, { type IUser } from '~/schemas/User';
+import User from '~/schemas/User';
 import Constants from '~/shared/constants';
 import type { IRouter, RouterRequestHandler } from '~/types/api';
 import type { AuthUserInfo } from '~/types/auth';
-import type { Nullable } from '~/types/utility';
-import { generateQueueRoomCode } from '~/utils/helpers';
+import { generateQueueRoomCode, isPlainObject } from '~/utils/helpers';
+import { editableQueueRoomSettingsPaths } from '../schemas/queues/QueueRoomSettings';
 
 const handleCreate: RouterRequestHandler = async (request, response) => {
 	const { id: userId }: AuthUserInfo = response.locals.user;
@@ -66,7 +64,6 @@ const handleCreate: RouterRequestHandler = async (request, response) => {
 };
 
 const handleDelete: RouterRequestHandler = async (request, response) => {
-	const { id: userId }: AuthUserInfo = response.locals.user;
 	const { id: queueRoomId } = request.body;
 	try {
 		await mongoose.connection.transaction(async function (session) {
@@ -83,30 +80,7 @@ const handleDelete: RouterRequestHandler = async (request, response) => {
 			// Delete all queue entries with the room id
 			await QueueEntry.deleteMany({ roomId: deletedQueueRoom._id }, { session }).exec();
 
-			// Using bulkWrite to perform batch updates to the users collection
-			const writes: AnyBulkWriteOperation<IUser>[] = [
-				// Delete the queue room from the authenticated user
-				{
-					updateOne: {
-						filter: { _id: userId },
-						update: { $pull: { rooms: deletedQueueRoom._id } },
-					},
-				},
-			];
-			const deletedEntries = [
-				...deletedQueueRoom.entries,
-				...deletedQueueRoom.skippedEntries,
-			];
-			if (deletedEntries.length > 0) {
-				// Delete queue entries from users where the entries field contains the deleted entries
-				writes.push({
-					updateMany: {
-						filter: { queues: { $in: deletedEntries } },
-						update: { $pull: { queues: { $in: deletedEntries } } },
-					},
-				});
-			}
-			await User.bulkWrite(writes, { session });
+			// TODO: Somehow notify all associated users about this deletion
 		});
 	} catch (error) {
 		if (error instanceof BaseError) {
@@ -131,7 +105,6 @@ const handleEdit: RouterRequestHandler = async (request, response) => {
 	const editablePaths: (keyof IQueueRoom)[] = [
 		'emoji', 'name', 'host', 'description', 'email',
 		'status', 'capacity', /* Excluding paths: code, _id, id */
-		'settings',
 	];
 	const setItems: Record<string, any> = {};
 	const unsetItems: Record<string, 0> = {};
@@ -142,6 +115,20 @@ const handleEdit: RouterRequestHandler = async (request, response) => {
 			unsetItems[path] = 0;
 		} else {
 			setItems[path] = newValue;
+		}
+	}
+	// Handle settings subdocument updates separately using dot notation
+	const newSettings = queueRoomInfo.settings;
+	if (isPlainObject(newSettings)) {
+		for (const path of editableQueueRoomSettingsPaths) {
+			const newValue = newSettings[path];
+			if (newValue === undefined) continue;
+			const dottedPath = `settings.${path}`;
+			if (newValue === null) {
+				unsetItems[dottedPath] = 0;
+			} else {
+				setItems[dottedPath] = newValue;
+			}
 		}
 	}
 	const updateQuery = {
@@ -186,23 +173,24 @@ const handleEdit: RouterRequestHandler = async (request, response) => {
 
 export default {
 	path: '/queue-room',
-	middleware: [authenticateUser],
+	middleware: [],
 	endpoints: [
 		{
 			path: '/create',
 			method: 'post',
+			middlware: [authenticateUser],
 			handler: handleCreate,
 		},
 		{
 			path: '/delete',
 			method: 'delete',
-			middlware: [verifyQueueRoom],
+			middlware: [authenticateUser, verifyQueueRoom],
 			handler: handleDelete,
 		},
 		{
 			path: '/edit',
 			method: 'put',
-			middlware: [verifyQueueRoom],
+			middlware: [authenticateUser, verifyQueueRoom],
 			handler: handleEdit,
 		},
 	],
