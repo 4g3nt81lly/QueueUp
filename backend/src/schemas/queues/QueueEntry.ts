@@ -17,15 +17,18 @@ export const queueEntrySchema = new Schema<IQueueEntry>(
 	{
 		roomId: {
 			type: Schema.Types.ObjectId,
+			cast: 'Invalid type: queue room ID',
 			ref: 'QueueRoom',
 			required: [true, 'Missing room ID.'],
 		},
 		guestUser: {
 			type: Schema.Types.ObjectId,
+			cast: 'Invalid type: queue room guest user ID',
 			ref: 'User',
 		},
 		guestName: {
 			type: String,
+			cast: 'Invalid type: queue room guest name',
 			required: [true, 'A name is required to join a queue.'],
 			minLength: [1, 'Guest name must not be empty.'],
 			maxLength: [
@@ -35,14 +38,16 @@ export const queueEntrySchema = new Schema<IQueueEntry>(
 		},
 		guestEmail: {
 			type: String,
+			cast: 'Invalid type: queue room guest email address',
 			maxLength: [
 				Constants.USER_EMAIL_MAX_LENGTH,
 				`Email must not be longer than ${Constants.USER_EMAIL_MAX_LENGTH} characters.`,
 			],
-			match: [Patterns.USER_EMAIL, `'{VALUE}' is not a valid email address.`],
+			match: [Patterns.USER_EMAIL, '"{VALUE}" is not a valid email address.'],
 		},
 		topic: {
 			type: String,
+			cast: 'Invalid type: queue room topic',
 			required: [true, 'A topic is required to join a queue.'],
 			minLength: [1, 'Topic must not be empty.'],
 			maxLength: [
@@ -52,6 +57,7 @@ export const queueEntrySchema = new Schema<IQueueEntry>(
 		},
 		description: {
 			type: String,
+			cast: 'Invalid type: queue room description',
 			required: true,
 			default: '',
 		},

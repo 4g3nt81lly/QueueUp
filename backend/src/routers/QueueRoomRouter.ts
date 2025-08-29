@@ -1,7 +1,5 @@
 import { StatusCodes } from 'http-status-codes';
-import mongoose, {
-	type UpdateQuery
-} from 'mongoose';
+import mongoose, { type UpdateQuery } from 'mongoose';
 import BaseError from '~/errors/base';
 import { InvalidRequestError, UnauthorizedRequestError } from '~/errors/rest';
 import { InternalServerError } from '~/errors/server';
@@ -119,16 +117,18 @@ const handleEdit: RouterRequestHandler = async (request, response) => {
 	}
 	// Handle settings subdocument updates separately using dot notation
 	const newSettings = queueRoomInfo.settings;
-	if (isPlainObject(newSettings)) {
-		for (const path of editableQueueRoomSettingsPaths) {
-			const newValue = newSettings[path];
-			if (newValue === undefined) continue;
-			const dottedPath = `settings.${path}`;
-			if (newValue === null) {
-				unsetItems[dottedPath] = 0;
-			} else {
-				setItems[dottedPath] = newValue;
-			}
+	if (!isPlainObject(newSettings)) {
+		response.status(StatusCodes.BAD_REQUEST);
+		throw new InvalidRequestError('Invalid settings type.');
+	}
+	for (const path of editableQueueRoomSettingsPaths) {
+		const newValue = newSettings[path];
+		if (newValue === undefined) continue;
+		const dottedPath = `settings.${path}`;
+		if (newValue === null) {
+			unsetItems[dottedPath] = 0;
+		} else {
+			setItems[dottedPath] = newValue;
 		}
 	}
 	const updateQuery = {

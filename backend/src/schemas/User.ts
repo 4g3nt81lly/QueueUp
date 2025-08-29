@@ -13,6 +13,7 @@ export const userSchema = new Schema<IUser>(
 	{
 		name: {
 			type: String,
+			cast: 'Invalid type: username',
 			required: [true, 'A user must have a name.'],
 			trim: true,
 			minLength: [1, 'Username must not be empty.'],
@@ -23,6 +24,7 @@ export const userSchema = new Schema<IUser>(
 		},
 		email: {
 			type: String,
+			cast: 'Invalid type: email address',
 			required: [true, 'An email is required.'],
 			unique: [true, 'An account with this email already exists.'],
 			trim: true,
@@ -30,7 +32,7 @@ export const userSchema = new Schema<IUser>(
 				Constants.USER_EMAIL_MAX_LENGTH,
 				`User email must not be longer than ${Constants.USER_EMAIL_MAX_LENGTH} characters.`,
 			],
-			match: [Patterns.USER_EMAIL, `'{VALUE}' is not a valid email address.`],
+			match: [Patterns.USER_EMAIL, '"{VALUE}" is not a valid email address.'],
 		},
 		password: {
 			type: String,

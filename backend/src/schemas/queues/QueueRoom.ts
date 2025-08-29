@@ -31,19 +31,22 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 	{
 		user: {
 			type: Schema.Types.ObjectId,
+			cast: 'Invalid type: owner user ID',
 			ref: 'User',
 			required: [true, 'Queue room must have an owner.'],
 			alias: 'owner',
 		},
 		code: {
 			type: String,
+			cast: 'Invalid type: queue room join code',
 			required: [true, 'Queue room must have a join code.'],
-			unique: [true, 'Queue room join code {VALUE} already exists.'],
+			unique: [true, 'Queue room join code "{VALUE}" already exists.'],
 			trim: true,
-			match: [Patterns.QROOM_CODE, `'{VALUE}' is not a valid queue room join code.`],
+			match: [Patterns.QROOM_CODE, '"{VALUE}" is not a valid queue room join code.'],
 		},
 		emoji: {
 			type: String,
+			cast: 'Invalid type: emoji',
 			validate: {
 				validator(value: any) {
 					if (typeof value !== 'string') {
@@ -57,12 +60,13 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 					return [...emoji].length === [...value].length;
 				},
 				message({ value }: ValidatorProps) {
-					return `Invalid emoji value '${value}'.`;
+					return `Invalid emoji "${value}".`;
 				},
 			},
 		},
 		name: {
 			type: String,
+			cast: 'Invalid type: queue room name',
 			required: [true, 'Queue room must have a name.'],
 			trim: true,
 			minLength: [1, 'Queue room name must not be empty.'],
@@ -73,6 +77,7 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 		},
 		host: {
 			type: String,
+			cast: 'Invalid type: queue room host name',
 			required: [true, 'Queue room must have a host name.'],
 			trim: true,
 			minLength: [1, 'Queue room host name must not be empty.'],
@@ -83,15 +88,17 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 		},
 		email: {
 			type: String,
+			cast: 'Invalid type: email address',
 			trim: true,
 			maxLength: [
 				Constants.USER_EMAIL_MAX_LENGTH,
 				`Queue room host email must not be longer than ${Constants.USER_EMAIL_MAX_LENGTH} characters.`,
 			],
-			match: [Patterns.USER_EMAIL, `'{VALUE}' is not a valid email address.`],
+			match: [Patterns.USER_EMAIL, '"{VALUE}" is not a valid email address.'],
 		},
 		description: {
 			type: String,
+			cast: 'Invalid type: queue room description',
 			required: true,
 			default: '',
 			maxLength: [
@@ -101,12 +108,14 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 		},
 		status: {
 			type: Number,
+			cast: 'Invalid type: queue room status',
 			enum: Object.values(QueueRoomStatus).filter(Number.isInteger),
 			required: true,
 			default: QueueRoomStatus.OPEN,
 		},
 		capacity: {
 			type: Number,
+			cast: 'Invalid type: queue room capacity',
 			required: true,
 			default: -1,
 			validate: {
@@ -117,7 +126,7 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 					return value === -1 || (value > 0 && value <= Constants.QROOM_MAX_CAPACITY);
 				},
 				message({ value }: ValidatorProps) {
-					return `Queue room capacity must be -1 (no limit) or a strictly positive number less than ${Constants.QROOM_MAX_CAPACITY}, got ${value} instead.`;
+					return `Queue room capacity must be -1 (no limit) or a strictly positive number less than ${Constants.QROOM_MAX_CAPACITY}, got "${value}" instead.`;
 				},
 			},
 		},
