@@ -1,10 +1,10 @@
 import { authenticateUser } from '~/middleware/auth';
 import { verifyQueueRoom } from '~/middleware/queue-room';
 import type { IRouter } from '~/types/api';
-import handleCreate from './queue-room/create';
-import handleDelete from './queue-room/delete';
-import handleEdit from './queue-room/edit';
-import handleJoin from './queue-room/join';
+import handleCreate from './create';
+import handleDelete from './delete';
+import handleEdit from './edit';
+import handleJoin from './join';
 
 export default {
 	path: '/queue-room',

@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
-import type { IRouter } from '../types/api';
-import QueueRoomRouter from './QueueRoomRouter';
-import UserRouter from './UserRouter';
+import type { IRouter } from '../../../types/api';
+import QueueRoomRouter from './queue-room/config';
+import UserRouter from './user/config';
 
 export default {
 	path: '/api/v1',
