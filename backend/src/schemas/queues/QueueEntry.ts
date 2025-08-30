@@ -1,9 +1,19 @@
-import { Schema, model, type Types } from 'mongoose';
+import { Schema, model, type Model, type Types } from 'mongoose';
 import Constants from '~/shared/constants';
 import Patterns from '~/shared/patterns';
-import type Timestamped from '../Timestamped';
+import type { ISendableSchema, ITimestampedSchema } from '../SchemaTypes';
 
-export interface IQueueEntry extends Timestamped {
+export interface IQueueEntry {
+	readonly id: string;
+	readonly roomId: string;
+	readonly guestUser?: string;
+	readonly guestName: string;
+	readonly guestEmail?: string;
+	readonly topic: string;
+	readonly description: string;
+}
+
+export interface IQueueEntrySchema extends ITimestampedSchema {
 	readonly _id: Types.ObjectId;
 	readonly roomId: Types.ObjectId;
 	guestUser?: Types.ObjectId;
@@ -13,7 +23,15 @@ export interface IQueueEntry extends Timestamped {
 	description: string;
 }
 
-export const queueEntrySchema = new Schema<IQueueEntry>(
+export interface IQueueEntryMethods extends ISendableSchema<IQueueEntry> {}
+
+type QueueEntryModelType = Model<IQueueEntrySchema, {}, IQueueEntryMethods>;
+
+export const QueueEntrySchema = new Schema<
+	IQueueEntrySchema,
+	QueueEntryModelType,
+	IQueueEntryMethods
+>(
 	{
 		roomId: {
 			type: Schema.Types.ObjectId,
@@ -29,7 +47,7 @@ export const queueEntrySchema = new Schema<IQueueEntry>(
 		guestName: {
 			type: String,
 			cast: 'Invalid type: queue room guest name',
-			required: [true, 'A name is required to join a queue.'],
+			required: [true, 'A name is required to join the queue.'],
 			minLength: [1, 'Guest name must not be empty.'],
 			maxLength: [
 				Constants.USER_NAME_MAX_LENGTH,
@@ -62,7 +80,27 @@ export const queueEntrySchema = new Schema<IQueueEntry>(
 			default: '',
 		},
 	},
-	{ timestamps: true, optimisticConcurrency: true }
+	{
+		methods: {
+			toData() {
+				const data: Record<string, any> = {
+					id: this._id.toHexString(),
+					...this.toObject({
+						schemaFieldsOnly: true,
+						versionKey: false,
+					}),
+				};
+				delete data._id;
+				return data as IQueueEntry;
+			},
+		},
+		timestamps: true,
+		optimisticConcurrency: true,
+	}
 );
 
-export default model<IQueueEntry>('QueueEntry', queueEntrySchema, 'queue-entries');
+export default model<IQueueEntrySchema, QueueEntryModelType>(
+	'QueueEntry',
+	QueueEntrySchema,
+	'queue-entries'
+);

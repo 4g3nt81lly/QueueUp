@@ -13,3 +13,5 @@ export class UnauthorizedRequestError extends APIError {
 }
 
 export class InvalidRequestError extends APIError {}
+
+export class ResourceNotAvailableError extends APIError {}

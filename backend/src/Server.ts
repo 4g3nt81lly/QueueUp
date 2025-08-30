@@ -9,7 +9,7 @@ import { FRONTEND_ORIGIN, PORT } from './shared/environment';
 import type { IRouter } from './types/api';
 import {
 	sendErrorResponse,
-	makeEndpointRequestHandler as wrapEndpointRequestHandler,
+	wrapEndpointRequestHandler,
 	wrapMiddleware,
 } from './utils/helpers';
 

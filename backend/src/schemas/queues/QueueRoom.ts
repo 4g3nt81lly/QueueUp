@@ -1,20 +1,20 @@
-import { Schema, model, type Types, type ValidatorProps } from 'mongoose';
+import { Schema, model, type Model, type Types, type ValidatorProps } from 'mongoose';
 import Constants from '~/shared/constants';
 import Patterns from '~/shared/patterns';
-import type Timestamped from '../Timestamped';
-import queueRoomSettingsSchema, { type IQueueRoomSettings } from './QueueRoomSettings';
+import { validateQueueRoomCapacity, validateQueueRoomEmoji } from '~/utils/validation';
+import type { ISendableSchema, ITimestampedSchema } from '../SchemaTypes';
+import QueueRoomSettingsSchema, { type IQueueRoomSettings } from './QueueRoomSettings';
+import type { IQueueEntrySchema } from './QueueEntry';
 
 export enum QueueRoomStatus {
 	CLOSED = 0,
 	PAUSED = 1,
-	FULL = 2,
-	OPEN = 3,
+	OPEN = 2,
 }
 
-export interface IQueueRoom extends Timestamped {
-	readonly _id: Types.ObjectId;
-	readonly user: Types.ObjectId;
-	readonly owner: Types.ObjectId;
+export interface IQueueRoom {
+	readonly id: string;
+	readonly user: string;
 	code: string;
 	emoji?: string;
 	name: string;
@@ -23,18 +23,47 @@ export interface IQueueRoom extends Timestamped {
 	description: string;
 	status: QueueRoomStatus;
 	capacity: number;
+	entries: string[];
+	skippedEntries: string[];
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface IQueueRoomSchema extends ITimestampedSchema {
+	readonly _id: Types.ObjectId;
+	readonly user: Types.ObjectId;
+	code: string;
+	emoji?: string;
+	name: string;
+	host: string;
+	email?: string;
+	description: string;
+	status: QueueRoomStatus;
+	capacity: number;
+	entries: Types.ObjectId[];
 	skippedEntries: Types.ObjectId[];
 	settings: IQueueRoomSettings;
 }
 
-export const queueRoomSchema = new Schema<IQueueRoom>(
+export interface IQueueRoomSchemaMethods extends ISendableSchema<IQueueRoom> {
+	isOpen(): boolean;
+	hasCapacity(): boolean;
+	hasAlreadyJoined(email: string, userId?: string): boolean;
+}
+
+type QueueRoomModelType = Model<IQueueRoomSchema, {}, IQueueRoomSchemaMethods>;
+
+export const QueueRoomSchema = new Schema<
+	IQueueRoomSchema,
+	QueueRoomModelType,
+	IQueueRoomSchemaMethods
+>(
 	{
 		user: {
 			type: Schema.Types.ObjectId,
 			cast: 'Invalid type: owner user ID',
 			ref: 'User',
 			required: [true, 'Queue room must have an owner.'],
-			alias: 'owner',
 		},
 		code: {
 			type: String,
@@ -49,15 +78,7 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 			cast: 'Invalid type: emoji',
 			validate: {
 				validator(value: any) {
-					if (typeof value !== 'string') {
-						return false;
-					}
-					const matches = [...value.matchAll(Patterns.QROOM_EMOJI)];
-					if (matches.length !== 1) {
-						return false;
-					}
-					const emoji = matches[0][0];
-					return [...emoji].length === [...value].length;
+					return validateQueueRoomEmoji.call(this, value);
 				},
 				message({ value }: ValidatorProps) {
 					return `Invalid emoji "${value}".`;
@@ -120,15 +141,22 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 			default: -1,
 			validate: {
 				validator(value: any) {
-					if (!Number.isInteger(value)) {
-						return false;
-					}
-					return value === -1 || (value > 0 && value <= Constants.QROOM_MAX_CAPACITY);
+					return validateQueueRoomCapacity.call(this, value);
 				},
 				message({ value }: ValidatorProps) {
 					return `Queue room capacity must be -1 (no limit) or a strictly positive number less than ${Constants.QROOM_MAX_CAPACITY}, got "${value}" instead.`;
 				},
 			},
+		},
+		entries: {
+			type: [
+				{
+					type: Schema.Types.ObjectId,
+					ref: 'QueueEntry',
+				},
+			],
+			required: true,
+			default: () => [],
 		},
 		skippedEntries: {
 			type: [
@@ -141,20 +169,38 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 			default: () => [],
 		},
 		settings: {
-			type: queueRoomSettingsSchema,
+			type: QueueRoomSettingsSchema,
 			required: true,
 			default: () => <IQueueRoomSettings>{},
 		},
 	},
 	{
-		virtuals: {
-			entries: {
-				options: {
-					ref: 'QueueEntry',
-					foreignField: 'roomId',
-					localField: '_id',
-					options: { sort: { createdAt: -1 } },
-				},
+		methods: {
+			toData() {
+				const data: Record<string, any> = {
+					id: this._id.toHexString(),
+					...this.toObject({
+						schemaFieldsOnly: true,
+						versionKey: false,
+					}),
+				};
+				delete data._id;
+				return data as IQueueRoom;
+			},
+			isOpen() {
+				return this.status === QueueRoomStatus.OPEN;
+			},
+			hasCapacity() {
+				return this.capacity === -1 || this.entries.length < this.capacity;
+			},
+			hasAlreadyJoined(email, userId) {
+				return this.$assertPopulated<{
+					entries: IQueueEntrySchema[];
+				}>('entries').entries.some((entry) => {
+					return userId
+						? entry.guestUser?.toHexString() === userId
+						: entry.guestEmail === email;
+				});
 			},
 		},
 		timestamps: true,
@@ -162,4 +208,8 @@ export const queueRoomSchema = new Schema<IQueueRoom>(
 	}
 );
 
-export default model<IQueueRoom>('QueueRoom', queueRoomSchema, 'queue-rooms');
+export default model<IQueueRoomSchema, QueueRoomModelType>(
+	'QueueRoom',
+	QueueRoomSchema,
+	'queue-rooms'
+);

@@ -1,15 +1,26 @@
-import { Schema, model, type Types } from 'mongoose';
+import { Schema, model, type Model, type Types } from 'mongoose';
 import Constants from '~/shared/constants';
 import Patterns from '~/shared/patterns';
+import type { ISendableSchema } from './SchemaTypes';
 
 export interface IUser {
+	readonly id: string;
+	readonly name: string;
+	readonly email: string;
+}
+
+export interface IUserSchema {
 	readonly _id: Types.ObjectId;
 	name: string;
 	email: string;
 	password: string;
 }
 
-export const userSchema = new Schema<IUser>(
+interface IUserSchemaMethods extends ISendableSchema<IUser> {}
+
+type UserModelType = Model<IUserSchema, {}, IUserSchemaMethods>;
+
+export const UserSchema = new Schema<IUserSchema, UserModelType, IUserSchemaMethods>(
 	{
 		name: {
 			type: String,
@@ -40,7 +51,18 @@ export const userSchema = new Schema<IUser>(
 			select: false,
 		},
 	},
-	{ optimisticConcurrency: true }
+	{
+		methods: {
+			toData(): IUser {
+				return {
+					id: this._id.toHexString(),
+					name: this.name,
+					email: this.email,
+				};
+			},
+		},
+		optimisticConcurrency: true,
+	}
 );
 
-export default model<IUser>('User', userSchema, 'users');
+export default model<IUserSchema, UserModelType>('User', UserSchema, 'users');

@@ -26,6 +26,7 @@ export interface IRouterEndpoint<ResponseType> {
 }
 
 export interface IRouterEndpointResponse<T> {
+	message: string;
 	data: Nullable<T>;
 }
 

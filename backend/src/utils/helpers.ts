@@ -7,27 +7,26 @@ import {
 	RouterRequestHandler,
 	type RouterMiddleware,
 } from '../types/api';
-
-export function isPlainObject(object: any) {
-	return object?.constructor === Object;
-}
+import { isPlainObject } from './validation';
 
 export function sendDataResponse(value: any, response: Response) {
 	if (value === undefined) return;
 
-	let endpointResponse: IRouterEndpointResponse<any>;
-	if (value === null) {
-		endpointResponse = { data: null };
-	} else if (isPlainObject(value)) {
-		let { data } = value;
-		if (data === undefined || Object.keys(value).length !== 1) {
-			// returnValue satisfies IRouterEndpointResponse
-			data = value;
+	let endpointResponse: IRouterEndpointResponse<any> = {
+		message: 'The operation was successful.',
+		data: undefined,
+	};
+	if (isPlainObject(value)) {
+		let { message = endpointResponse.message, data, ...extra } = value;
+		if (data === undefined) {
+			// Payload (return value) does not have a 'data' key
+			data = extra;
+			extra = {};
 		}
-		endpointResponse = { data };
+		endpointResponse = { message, data, ...extra };
 	} else {
-		// Other serializable values
-		endpointResponse = { data: value };
+		// Other serializable values (hopefully)
+		endpointResponse.data = value;
 	}
 	response.json(endpointResponse).end();
 }
@@ -49,7 +48,7 @@ export function sendErrorResponse(error: any, response: Response) {
 	response.json(endpointError).end();
 }
 
-export function makeEndpointRequestHandler(handler: RouterRequestHandler) {
+export function wrapEndpointRequestHandler(handler: RouterRequestHandler) {
 	return async (request: Request, response: Response) => {
 		try {
 			const value = await handler(request, response);
