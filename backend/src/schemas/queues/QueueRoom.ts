@@ -3,8 +3,8 @@ import Constants from '~/shared/constants';
 import Patterns from '~/shared/patterns';
 import { validateQueueRoomCapacity, validateQueueRoomEmoji } from '~/utils/validation';
 import type { ISendableSchema, ITimestampedSchema } from '../SchemaTypes';
-import QueueRoomSettingsSchema, { type IQueueRoomSettings } from './QueueRoomSettings';
 import type { IQueueEntrySchema } from './QueueEntry';
+import QueueRoomSettingsSchema, { type IQueueRoomSettings } from './QueueRoomSettings';
 
 export enum QueueRoomStatus {
 	CLOSED = 0,

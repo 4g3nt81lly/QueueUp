@@ -1,6 +1,9 @@
-import { Schema, model, type Model, type Types } from 'mongoose';
+import jwt from 'jsonwebtoken';
+import { Schema, Types, model, type Model } from 'mongoose';
 import Constants from '~/shared/constants';
+import { ACCESS_TOKEN_SECRET } from '~/shared/environment';
 import Patterns from '~/shared/patterns';
+import type { AuthUserInfo } from '~/types/auth';
 import type { ISendableSchema, ITimestampedSchema } from '../SchemaTypes';
 
 export interface IQueueEntry {
@@ -15,7 +18,7 @@ export interface IQueueEntry {
 
 export interface IQueueEntrySchema extends ITimestampedSchema {
 	readonly _id: Types.ObjectId;
-	readonly roomId: Types.ObjectId;
+	roomId: Types.ObjectId;
 	guestUser?: Types.ObjectId;
 	guestName: string;
 	guestEmail?: string;
@@ -57,6 +60,12 @@ export const QueueEntrySchema = new Schema<
 		guestEmail: {
 			type: String,
 			cast: 'Invalid type: queue room guest email address',
+			required: [
+				function () {
+					return !Types.ObjectId.isValid(this.guestUser ?? '');
+				},
+				'An email is required to join the queue while logged out.',
+			],
 			maxLength: [
 				Constants.USER_EMAIL_MAX_LENGTH,
 				`Email must not be longer than ${Constants.USER_EMAIL_MAX_LENGTH} characters.`,
@@ -83,13 +92,20 @@ export const QueueEntrySchema = new Schema<
 	{
 		methods: {
 			toData() {
-				const data: Record<string, any> = {
-					id: this._id.toHexString(),
-					...this.toObject({
-						schemaFieldsOnly: true,
-						versionKey: false,
-					}),
-				};
+				const data: Record<string, any> = this.toObject({
+					schemaFieldsOnly: true,
+					versionKey: false,
+				});
+				// Generate and attach temporary access token if user credential is missing
+				// This token will be used to identify clients that are not logged in
+				if (this.guestUser === undefined) {
+					const jwtPayload = <AuthUserInfo>{
+						id: this._id.toHexString(),
+						username: this.guestEmail!,
+					};
+					data.token = jwt.sign(jwtPayload, ACCESS_TOKEN_SECRET);
+				}
+				// ObjectId should be hidden away from the client
 				delete data._id;
 				return data as IQueueEntry;
 			},

@@ -21,6 +21,27 @@ const handleJoin: RouterRequestHandler = async (request, response) => {
 	let newQueueEntry;
 	try {
 		newQueueEntry = await mongoose.connection.transaction(async function (session) {
+			// Missing roomId, guestUser/guestEmail
+			const newEntry = new QueueEntry({
+				guestName: name,
+				topic,
+				description,
+			});
+			// Authenticate user only if authorization header is provided (logged in)
+			let userId = undefined;
+			if (request.headers.authorization === undefined) {
+				newEntry.guestEmail = email;
+			} else {
+				await authenticateUser(request, response, () => {});
+				userId = (<AuthUserInfo>response.locals.user).id;
+				newEntry.guestUser = new mongoose.Types.ObjectId(userId);
+			}
+			// Validate request inputs before fetching room details
+			const validationError = newEntry.validateSync({ pathsToSkip: ['roomId'] });
+			if (validationError) {
+				throw validationError;
+			}
+
 			// Find the queue room with the given code
 			const queueRoom = await QueueRoom.findOne({ code })
 				.populate<{ entries: IQueueEntrySchema[] }>('entries', 'guestUser guestEmail')
@@ -29,6 +50,13 @@ const handleJoin: RouterRequestHandler = async (request, response) => {
 			if (queueRoom === null) {
 				response.status(StatusCodes.NOT_FOUND);
 				throw new NotFoundError(`No queue room exists with code "${code}".`);
+			}
+			newEntry.roomId = queueRoom._id;
+
+			// Disregard other availability conditions if the user has already joined
+			if (queueRoom.hasAlreadyJoined(email, userId)) {
+				response.status(StatusCodes.FORBIDDEN);
+				throw new ResourceNotAvailableError('You have already joined this queue.');
 			}
 			if (!queueRoom.isOpen()) {
 				response.status(StatusCodes.FORBIDDEN);
@@ -40,36 +68,12 @@ const handleJoin: RouterRequestHandler = async (request, response) => {
 				response.status(StatusCodes.FORBIDDEN);
 				throw new ResourceNotAvailableError('The requested queue is out of capacity.');
 			}
-			// Prepare required fields first, leaving optional fields unset
-			const newEntry = new QueueEntry({
-				roomId: queueRoom._id,
-				guestName: name,
-				topic,
-				description,
-			});
-			// Authenticate user only if authorization header is provided (logged in)
-			let userId = undefined;
-			if (request.headers.authorization === undefined) {
-				if (email === undefined) {
-					response.status(StatusCodes.BAD_REQUEST);
-					throw new InvalidRequestError(
-						'An email is required to join the queue while logged out.'
-					);
-				}
-				newEntry.guestEmail = email;
-			} else {
-				await authenticateUser(request, response, () => {});
-				userId = (<AuthUserInfo>response.locals.user).id;
-				newEntry.guestUser = new mongoose.Types.ObjectId(userId);
-			}
-			if (queueRoom.hasAlreadyJoined(email, userId)) {
-				response.status(StatusCodes.FORBIDDEN);
-				throw new ResourceNotAvailableError('You have already joined this queue.');
-			}
 
-			// Inserts new queue entry to obtain an ID
-			await newEntry.save({ session });
+			// Inserts new queue entry to obtain an ID, no need to validate again
+			await newEntry.save({ session, validateBeforeSave: false });
 
+			// If any of the document states in the filter query have changed,
+			// e.g. the room code/status was updated, someone else joined the room since last read
 			const updatedQueueRoom = await QueueRoom.findOneAndUpdate(
 				{
 					_id: queueRoom._id,
