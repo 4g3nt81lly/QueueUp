@@ -6,6 +6,19 @@ import Patterns from '~/shared/patterns';
 import type { AuthUserInfo } from '~/types/auth';
 import type { ISendableSchema, ITimestampedSchema } from '../SchemaTypes';
 
+export enum QueueEntryStatus {
+	UNRESOLVED = 0,
+	RESOLVED = 1,
+	REVISIT = 2,
+}
+
+export enum QueueEntryPriority {
+	LOW = 0,
+	MEDIUM = 1,
+	HIGH = 2,
+	URGENT = 3,
+}
+
 export interface IQueueEntry {
 	readonly id: string;
 	readonly roomId: string;
@@ -14,6 +27,8 @@ export interface IQueueEntry {
 	readonly guestEmail?: string;
 	readonly topic: string;
 	readonly description: string;
+	readonly status: QueueEntryStatus;
+	readonly priority: QueueEntryPriority;
 }
 
 export interface IQueueEntrySchema extends ITimestampedSchema {
@@ -24,6 +39,8 @@ export interface IQueueEntrySchema extends ITimestampedSchema {
 	guestEmail?: string;
 	topic: string;
 	description: string;
+	status: QueueEntryStatus;
+	priority: QueueEntryPriority;
 }
 
 export interface IQueueEntryMethods extends ISendableSchema<IQueueEntry> {}
@@ -85,8 +102,28 @@ export const QueueEntrySchema = new Schema<
 		description: {
 			type: String,
 			cast: 'Invalid type: queue room description',
-			required: true,
+			required: [true, 'A description is required to join a queue.'],
 			default: '',
+		},
+		status: {
+			type: Number,
+			cast: 'Invalid type: queue entry status',
+			enum: {
+				values: Object.values(QueueEntryStatus).filter(Number.isInteger),
+				message: 'Invalid queue entry status ({VALUE}).',
+			},
+			required: [true, 'A queue entry status is required.'],
+			default: QueueEntryStatus.UNRESOLVED,
+		},
+		priority: {
+			type: Number,
+			cast: 'Invalid type: queue entry priority',
+			enum: {
+				values: Object.values(QueueEntryPriority).filter(Number.isInteger),
+				message: 'Invalid queue entry priority ({VALUE}).',
+			},
+			required: [true, 'A queue entry must define a priority.'],
+			default: QueueEntryPriority.MEDIUM,
 		},
 	},
 	{

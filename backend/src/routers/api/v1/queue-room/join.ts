@@ -15,7 +15,7 @@ import type { AuthUserInfo } from '~/types/auth';
 
 // FIXME: All join requests must be handled serially, test properly
 const handleJoin: RouterRequestHandler = async (request, response) => {
-	let { code, name, email, topic, description } = request.body;
+	let { code, name, email, topic, description, status, priority } = request.body;
 	// Manually validate join code format, no need to query DB if invalid
 	if (typeof code !== 'string' || !Patterns.QROOM_CODE.test(code)) {
 		response.status(StatusCodes.BAD_REQUEST);
@@ -29,6 +29,8 @@ const handleJoin: RouterRequestHandler = async (request, response) => {
 				guestName: name,
 				topic,
 				description,
+				status,
+				priority,
 			});
 			// Authenticate user only if authorization header is provided (logged in)
 			let userId = undefined;

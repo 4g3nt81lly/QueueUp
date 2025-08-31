@@ -14,9 +14,15 @@ const handleCreate: RouterRequestHandler = async (request, response) => {
 	let newQueueRoom;
 	try {
 		newQueueRoom = await mongoose.connection.transaction(async function (session) {
-			// TODO: Test cases where payloads have reserved keys (e.g. createdAt, updatedAt)
-			const { _id: _, ...queueRoomInfo } = request.body;
-			newQueueRoom = new QueueRoom(queueRoomInfo);
+			newQueueRoom = new QueueRoom({
+				...request.body,
+				_id: undefined,
+				currentEntry: undefined,
+				entries: undefined,
+				skippedEntries: undefined,
+				createdAt: undefined,
+				updatedAt: undefined,
+			});
 			// Verify if the user matches the authentication payload
 			if (newQueueRoom.user.toHexString() !== userId) {
 				response.status(StatusCodes.UNAUTHORIZED);

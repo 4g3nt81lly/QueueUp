@@ -23,6 +23,7 @@ export interface IQueueRoom {
 	description: string;
 	status: QueueRoomStatus;
 	capacity: number;
+	currentEntry?: string;
 	entries: string[];
 	skippedEntries: string[];
 	createdAt: string;
@@ -40,6 +41,7 @@ export interface IQueueRoomSchema extends ITimestampedSchema {
 	description: string;
 	status: QueueRoomStatus;
 	capacity: number;
+	currentEntry?: string;
 	entries: Types.ObjectId[];
 	skippedEntries: Types.ObjectId[];
 	settings: IQueueRoomSettings;
@@ -120,7 +122,7 @@ export const QueueRoomSchema = new Schema<
 		description: {
 			type: String,
 			cast: 'Invalid type: queue room description',
-			required: true,
+			required: [true, 'Queue room must have a description.'],
 			default: '',
 			maxLength: [
 				Constants.QROOM_DESCRIPTION_MAX_LENGTH,
@@ -130,14 +132,17 @@ export const QueueRoomSchema = new Schema<
 		status: {
 			type: Number,
 			cast: 'Invalid type: queue room status',
-			enum: Object.values(QueueRoomStatus).filter(Number.isInteger),
-			required: true,
+			enum: {
+				values: Object.values(QueueRoomStatus).filter(Number.isInteger),
+				message: 'Invalid queue room status ({VALUE}).',
+			},
+			required: [true, 'A queue room status is required.'],
 			default: QueueRoomStatus.OPEN,
 		},
 		capacity: {
 			type: Number,
 			cast: 'Invalid type: queue room capacity',
-			required: true,
+			required: [true, 'A queue room capacity is required.'],
 			default: -1,
 			validate: {
 				validator(value: any) {
@@ -147,6 +152,10 @@ export const QueueRoomSchema = new Schema<
 					return `Queue room capacity must be -1 (no limit) or a strictly positive number less than ${Constants.QROOM_MAX_CAPACITY}, got "${value}" instead.`;
 				},
 			},
+		},
+		currentEntry: {
+			type: Schema.Types.ObjectId,
+			ref: 'QueueEntry',
 		},
 		entries: {
 			type: [
@@ -170,7 +179,7 @@ export const QueueRoomSchema = new Schema<
 		},
 		settings: {
 			type: QueueRoomSettingsSchema,
-			required: true,
+			required: [true, 'Initial queue room settings is required.'],
 			default: () => <IQueueRoomSettings>{},
 		},
 	},
