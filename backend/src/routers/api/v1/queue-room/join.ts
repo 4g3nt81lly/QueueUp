@@ -1,9 +1,12 @@
 import { StatusCodes } from 'http-status-codes';
 import mongoose from 'mongoose';
 import BaseError from '~/errors/base';
-import { InvalidRequestError, ResourceNotAvailableError } from '~/errors/rest';
+import {
+	InvalidRequestError,
+	ResourceNotAvailableError as ResourceUnavailableError,
+} from '~/errors/rest';
 import { InternalServerError, NotFoundError } from '~/errors/server';
-import { authenticateUser } from '~/middleware/auth';
+import { authenticateRequest } from '~/middleware/auth';
 import QueueEntry, { type IQueueEntrySchema } from '~/schemas/queues/QueueEntry';
 import QueueRoom, { QueueRoomStatus } from '~/schemas/queues/QueueRoom';
 import Patterns from '~/shared/patterns';
@@ -32,7 +35,7 @@ const handleJoin: RouterRequestHandler = async (request, response) => {
 			if (request.headers.authorization === undefined) {
 				newEntry.guestEmail = email;
 			} else {
-				await authenticateUser(request, response, () => {});
+				await authenticateRequest(request, response, () => {});
 				userId = (<AuthUserInfo>response.locals.user).id;
 				newEntry.guestUser = new mongoose.Types.ObjectId(userId);
 			}
@@ -49,24 +52,24 @@ const handleJoin: RouterRequestHandler = async (request, response) => {
 				.exec();
 			if (queueRoom === null) {
 				response.status(StatusCodes.NOT_FOUND);
-				throw new NotFoundError(`No queue room exists with code "${code}".`);
+				throw new NotFoundError(`No queue exists with code "${code}".`);
 			}
 			newEntry.roomId = queueRoom._id;
 
 			// Disregard other availability conditions if the user has already joined
 			if (queueRoom.hasAlreadyJoined(email, userId)) {
 				response.status(StatusCodes.FORBIDDEN);
-				throw new ResourceNotAvailableError('You have already joined this queue.');
+				throw new ResourceUnavailableError('You have already joined this queue.');
 			}
 			if (!queueRoom.isOpen()) {
 				response.status(StatusCodes.FORBIDDEN);
-				throw new ResourceNotAvailableError(
+				throw new ResourceUnavailableError(
 					'The requested queue is not open and cannot be joined.'
 				);
 			}
 			if (!queueRoom.hasCapacity()) {
 				response.status(StatusCodes.FORBIDDEN);
-				throw new ResourceNotAvailableError('The requested queue is out of capacity.');
+				throw new ResourceUnavailableError('The requested queue is out of capacity.');
 			}
 
 			// Inserts new queue entry to obtain an ID, no need to validate again
@@ -95,7 +98,7 @@ const handleJoin: RouterRequestHandler = async (request, response) => {
 					await newEntry.deleteOne({ session });
 				} finally {
 					response.status(StatusCodes.FORBIDDEN);
-					throw new ResourceNotAvailableError(
+					throw new ResourceUnavailableError(
 						'Unable to join the queue, please try again!'
 					);
 				}
@@ -113,12 +116,12 @@ const handleJoin: RouterRequestHandler = async (request, response) => {
 		console.error(error);
 		response.status(StatusCodes.INTERNAL_SERVER_ERROR);
 		throw new InternalServerError(
-			'An unexpected error occurred while joining a queue room.'
+			'An unexpected error occurred when joining the queue. Please try again later!'
 		);
 	}
 	response.status(StatusCodes.CREATED);
 	return {
-		message: `Successfully joined the queue room with code "${code}".`,
+		message: `Successfully joined the queue with code "${code}".`,
 		data: newQueueEntry.toData(),
 	};
 };

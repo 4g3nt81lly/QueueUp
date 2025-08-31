@@ -1,3 +1,4 @@
+import type { NextFunction, Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import jwt from 'jsonwebtoken';
 import { UnauthorizedRequestError } from '~/errors/rest';
@@ -5,10 +6,12 @@ import { InternalServerError } from '~/errors/server';
 import User from '~/schemas/User';
 import { ACCESS_TOKEN_SECRET } from '~/shared/environment';
 import Patterns from '~/shared/patterns';
-import type { RouterMiddleware } from '~/types/api';
 import type { AuthUserInfo } from '~/types/auth';
 
-export const authenticateUser: RouterMiddleware = async (request, response, next) => {
+export function getAuthenticationPayload(
+	request: Request,
+	response: Response
+): AuthUserInfo & { token: string } {
 	const accessTokenMatch = request.headers.authorization?.match(
 		Patterns.AUTHORIZATION_HEADER
 	);
@@ -27,11 +30,18 @@ export const authenticateUser: RouterMiddleware = async (request, response, next
 		typeof decodedPayload.id !== 'string' ||
 		typeof decodedPayload.username !== 'string'
 	) {
-		console.error(`🎩 Unauthorized access attempted, token: ${token}`);
 		response.status(StatusCodes.UNAUTHORIZED);
 		throw new UnauthorizedRequestError('Invalid user credentials.');
 	}
 	const { id, username } = decodedPayload;
+	return { id, username, token };
+}
+
+export async function authenticateUser(
+	payload: ReturnType<typeof getAuthenticationPayload>,
+	response: Response
+) {
+	const { id, username, token } = payload;
 	let userExists = null;
 	try {
 		userExists = await User.exists({ _id: id, name: username }).exec();
@@ -41,11 +51,19 @@ export const authenticateUser: RouterMiddleware = async (request, response, next
 		throw new InternalServerError();
 	}
 	if (userExists === null) {
-		console.error(`🎩 Unauthorized access attempted, token: ${token}`);
 		response.status(StatusCodes.UNAUTHORIZED);
 		throw new UnauthorizedRequestError();
 	}
 	// Pass user info downstream using locals
 	response.locals.user = <AuthUserInfo>{ id, username };
+}
+
+export async function authenticateRequest(
+	request: Request,
+	response: Response,
+	next: NextFunction
+) {
+	const payload = getAuthenticationPayload(request, response);
+	await authenticateUser(payload, response);
 	next();
-};
+}

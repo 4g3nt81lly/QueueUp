@@ -6,12 +6,12 @@ import QueueRoom from '~/schemas/queues/QueueRoom';
 import type { RouterMiddleware } from '~/types/api';
 import type { AuthUserInfo } from '~/types/auth';
 
-export const verifyQueueRoom: RouterMiddleware = async (request, response, next) => {
+export const validateQueueRoom: RouterMiddleware = async (request, response, next) => {
 	const { id: userId }: AuthUserInfo = response.locals.user;
 	const { id: queueRoomId } = request.body;
 	if (typeof queueRoomId !== 'string') {
 		response.status(StatusCodes.BAD_REQUEST);
-		throw new InvalidRequestError('Missing queue room ID.');
+		throw new InvalidRequestError('Missing queue ID.');
 	}
 	let queueRoom = null;
 	try {
@@ -19,17 +19,17 @@ export const verifyQueueRoom: RouterMiddleware = async (request, response, next)
 	} catch (error) {
 		if (error instanceof mongoose.Error) {
 			response.status(StatusCodes.BAD_REQUEST);
-			throw new InvalidRequestError('Invalid queue room ID.');
+			throw new InvalidRequestError('Invalid queue ID.');
 		}
 		console.error(error);
 		response.status(StatusCodes.INTERNAL_SERVER_ERROR);
 		throw new InternalServerError(
-			'An unexpected error occurred while validating queue room ID.'
+			'An unexpected error occurred while validating queue ID.'
 		);
 	}
 	if (queueRoom === null) {
 		response.status(StatusCodes.NOT_FOUND);
-		throw new NotFoundError();
+		throw new NotFoundError('The requested queue does not exist.');
 	}
 	// Verify if the user matches the authentication payload
 	if (queueRoom.user.toHexString() !== userId) {
